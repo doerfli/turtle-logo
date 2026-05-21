@@ -1,0 +1,40 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.183.0/containers/ruby
+{
+	"name": "turtle-logo",
+	"dockerComposeFile": "docker-compose.yml",
+    "service": "app",
+    "workspaceFolder": "/workspace",
+	// Set *default* container specific settings.json values on container create.
+
+	"features": {
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+			"moby": false
+		},
+		"ghcr.io/devcontainers/features/rust:1": {},
+		"ghcr.io/devcontainers-extra/features/bun:1": {},
+	},
+
+	// Add the IDs of extensions you want installed when the container is created.
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"github.vscode-pull-request-github",
+				"oderwat.indent-rainbow",
+				"eamodio.gitlens",
+				"mhutchie.git-graph",
+				"github.copilot",				
+				"github.copilot-chat"
+			]
+		}
+	},
+	
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [3000],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "bun install && bun add -D @tauri-apps/cli",
+
+	// Comment out connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+	"remoteUser": "vscode"
+}

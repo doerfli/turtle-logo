@@ -158,6 +158,7 @@ export class Parser {
     const t = this.peek();
     if (t.kind === 'NUMBER') { this.consume(); return { kind: 'number', value: parseFloat(t.value) }; }
     if (t.kind === 'VAR')    { this.consume(); return { kind: 'var', name: t.value }; }
+    if (t.kind === 'QUOTED_WORD') { this.consume(); return { kind: 'string', value: t.value }; }
     if (t.kind === 'LPAREN') {
       this.consume();
       const expr = this.parseExpr();
@@ -225,11 +226,10 @@ export class Parser {
       const nameToken = this.expect('WORD');
       const params: string[] = [];
       while (this.peek().kind === 'VAR') params.push(this.consume().value);
-      const body: ASTNode[] = [];
-      while (this.peekWord() !== 'END' && this.peek().kind !== 'EOF') body.push(this.parseStatement());
+      const def: ProcedureDef = { name: nameToken.value, params, body: [] };
+      this.procedures.set(nameToken.value, def); // register before parsing body so self-recursive calls know arity
+      while (this.peekWord() !== 'END' && this.peek().kind !== 'EOF') def.body.push(this.parseStatement());
       this.expect('WORD'); // END
-      const def = { name: nameToken.value, params, body };
-      this.procedures.set(nameToken.value, def);
       return { kind: 'proceduredef', def };
     }
 
@@ -257,11 +257,12 @@ export class Parser {
       case 'PENWIDTH':   return { kind: 'penwidth',   width:   this.parseExpr() };
       case 'SETHEADING': return { kind: 'setheading', degrees: this.parseExpr() };
       case 'PRINT':      return { kind: 'print',      value:   this.parseExpr() };
+      case 'STOP':       return { kind: 'stop' };
       case 'PENCOLOR': {
-        // PENCOLOR "red  OR  PENCOLOR [r g b]
+        // PENCOLOR "red  OR  PENCOLOR [r g b]  OR  PENCOLOR :var
         if (this.peek().kind === 'QUOTED_WORD') {
           const color = this.consume().value;
-          return { kind: 'pencolor', color };
+          return { kind: 'pencolor', color: { kind: 'string', value: color } };
         }
         if (this.peek().kind === 'LBRACKET') {
           this.consume();
@@ -269,9 +270,12 @@ export class Parser {
           const g = Math.round(parseFloat(this.expect('NUMBER').value));
           const b = Math.round(parseFloat(this.expect('NUMBER').value));
           this.expect('RBRACKET');
-          return { kind: 'pencolor', color: `rgb(${r},${g},${b})` };
+          return { kind: 'pencolor', color: { kind: 'string', value: `rgb(${r},${g},${b})` } };
         }
-        return { kind: 'pencolor', color: 'black' };
+        if (this.peek().kind === 'VAR') {
+          return { kind: 'pencolor', color: this.parseExpr() };
+        }
+        return { kind: 'pencolor', color: { kind: 'string', value: 'black' } };
       }
       case 'SETPOS': {
         this.expect('LBRACKET');

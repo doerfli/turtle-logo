@@ -26,15 +26,30 @@ export interface ExecStep {
   log?: string;
 }
 
-export type Env = Map<string, number>;
+export type Env = Map<string, number | string>;
+
+// Evaluates an expression to whatever value it naturally holds (number or string) —
+// used where the result isn't necessarily arithmetic, e.g. procedure args, MAKE, PENCOLOR.
+function evalValue(expr: Expr, env: Env): number | string {
+  if (expr.kind === 'string') return expr.value;
+  if (expr.kind === 'var') {
+    const key = expr.name.toUpperCase();
+    if (!env.has(key)) throw new Error(`Undefined variable: ${expr.name}`);
+    return env.get(key)!;
+  }
+  return evalExpr(expr, env);
+}
 
 function evalExpr(expr: Expr, env: Env): number {
   switch (expr.kind) {
     case 'number':  return expr.value;
+    case 'string':  throw new Error(`Cannot use text value "${expr.value}" in a numeric expression`);
     case 'var': {
       const key = expr.name.toUpperCase();
       if (!env.has(key)) throw new Error(`Undefined variable: ${expr.name}`);
-      return env.get(key)!;
+      const val = env.get(key)!;
+      if (typeof val === 'string') throw new Error(`Cannot use text variable :${expr.name} in a numeric expression`);
+      return val;
     }
     case 'neg':    return -evalExpr(expr.expr, env);
     case 'binop': {
@@ -78,12 +93,14 @@ function cloneState(s: TurtleState): TurtleState {
 
 type ProcedureRegistry = Map<string, { params: string[]; body: ASTNode[] }>;
 
+type Signal = 'stop' | undefined;
+
 function* execNode(
   node: ASTNode,
   state: TurtleState,
   env: Env,
   procs: ProcedureRegistry,
-): Generator<ExecStep, void, unknown> {
+): Generator<ExecStep, Signal, unknown> {
   switch (node.kind) {
     case 'forward':
     case 'backward': {
@@ -103,7 +120,7 @@ function* execNode(
     case 'left':   state.heading = ((state.heading - evalExpr(node.degrees, env)) % 360 + 360) % 360; yield { state: cloneState(state) }; break;
     case 'penup':   state.penDown = false; yield { state: cloneState(state) }; break;
     case 'pendown': state.penDown = true;  yield { state: cloneState(state) }; break;
-    case 'pencolor': state.penColor = node.color; yield { state: cloneState(state) }; break;
+    case 'pencolor': state.penColor = String(evalValue(node.color, env)); yield { state: cloneState(state) }; break;
     case 'penwidth': state.penWidth = evalExpr(node.width, env); yield { state: cloneState(state) }; break;
     case 'showturtle': state.visible = true;  yield { state: cloneState(state) }; break;
     case 'hideturtle': state.visible = false; yield { state: cloneState(state) }; break;
@@ -129,12 +146,12 @@ function* execNode(
       break;
     }
     case 'print': {
-      const val = evalExpr(node.value, env);
+      const val = evalValue(node.value, env);
       yield { state: cloneState(state), log: String(val) };
       break;
     }
     case 'make': {
-      env.set(node.name.toUpperCase(), evalExpr(node.value, env));
+      env.set(node.name.toUpperCase(), evalValue(node.value, env));
       yield { state: cloneState(state) };
       break;
     }
@@ -142,7 +159,8 @@ function* execNode(
       const n = Math.round(evalExpr(node.count, env));
       for (let i = 0; i < n; i++) {
         for (const child of node.body) {
-          yield* execNode(child, state, env, procs);
+          const signal = yield* execNode(child, state, env, procs);
+          if (signal === 'stop') return 'stop';
         }
       }
       break;
@@ -157,24 +175,32 @@ function* execNode(
       if (!proc) throw new Error(`Undefined procedure: ${node.name}`);
       const localEnv: Env = new Map(env);
       for (let i = 0; i < proc.params.length; i++) {
-        localEnv.set(proc.params[i].toUpperCase(), evalExpr(node.args[i] ?? { kind: 'number', value: 0 }, env));
+        localEnv.set(proc.params[i].toUpperCase(), evalValue(node.args[i] ?? { kind: 'number', value: 0 }, env));
       }
       for (const child of proc.body) {
-        yield* execNode(child, state, localEnv, procs);
+        const signal = yield* execNode(child, state, localEnv, procs);
+        if (signal === 'stop') break;
       }
       break;
     }
     case 'if': {
       if (evalBool(node.cond, env)) {
-        for (const child of node.then) yield* execNode(child, state, env, procs);
+        for (const child of node.then) {
+          const signal = yield* execNode(child, state, env, procs);
+          if (signal === 'stop') return 'stop';
+        }
       }
       break;
     }
     case 'ifelse': {
       const branch = evalBool(node.cond, env) ? node.then : node.else;
-      for (const child of branch) yield* execNode(child, state, env, procs);
+      for (const child of branch) {
+        const signal = yield* execNode(child, state, env, procs);
+        if (signal === 'stop') return 'stop';
+      }
       break;
     }
+    case 'stop': return 'stop';
   }
 }
 
@@ -191,6 +217,7 @@ export function* execute(
   const env: Env = new Map();
   const procs: ProcedureRegistry = new Map();
   for (const node of nodes) {
-    yield* execNode(node, state, env, procs);
+    const signal = yield* execNode(node, state, env, procs);
+    if (signal === 'stop') break;
   }
 }

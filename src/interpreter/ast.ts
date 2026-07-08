@@ -21,13 +21,19 @@ export type ASTNode =
   | IfCmd
   | IfElseCmd
   | MakeCmd
-  | PrintCmd;
+  | PrintCmd
+  | StopCmd;
 
-export type Expr = NumberExpr | VarExpr | BinOpExpr | NegExpr;
+export type Expr = NumberExpr | StringExpr | VarExpr | BinOpExpr | NegExpr;
 
 export interface NumberExpr {
   kind: 'number';
   value: number;
+}
+
+export interface StringExpr {
+  kind: 'string';
+  value: string;
 }
 
 export interface VarExpr {
@@ -55,7 +61,7 @@ export interface RightCmd     { kind: 'right';      degrees: Expr }
 export interface LeftCmd      { kind: 'left';       degrees: Expr }
 export interface PenUpCmd     { kind: 'penup' }
 export interface PenDownCmd   { kind: 'pendown' }
-export interface PenColorCmd  { kind: 'pencolor';   color: string }
+export interface PenColorCmd  { kind: 'pencolor';   color: Expr }
 export interface PenWidthCmd  { kind: 'penwidth';   width: Expr }
 export interface ShowTurtleCmd { kind: 'showturtle' }
 export interface HideTurtleCmd { kind: 'hideturtle' }
@@ -64,6 +70,7 @@ export interface SetPosCmd    { kind: 'setpos';     x: Expr; y: Expr }
 export interface SetHeadingCmd { kind: 'setheading'; degrees: Expr }
 export interface HomeCmd      { kind: 'home' }
 export interface PrintCmd     { kind: 'print';      value: Expr }
+export interface StopCmd      { kind: 'stop' }
 
 export interface RepeatCmd {
   kind: 'repeat';

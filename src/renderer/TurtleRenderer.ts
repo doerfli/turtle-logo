@@ -87,7 +87,7 @@ export class TurtleRenderer {
   private drawTurtle(state: TurtleState) {
     const [cx, cy] = this.toCanvas(state.x, state.y);
     const size = 12;
-    const rad = ((state.heading - 90) * Math.PI) / 180;
+    const rad = (state.heading * Math.PI) / 180;
 
     this.ctx.save();
     this.ctx.translate(cx, cy);

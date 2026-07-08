@@ -105,7 +105,7 @@ function* execNode(
     case 'forward':
     case 'backward': {
       const dist = evalExpr(node.kind === 'forward' ? node.amount : node.amount, env) * (node.kind === 'backward' ? -1 : 1);
-      const rad = ((state.heading - 90) * Math.PI) / 180;
+      const rad = ((90 - state.heading) * Math.PI) / 180;
       const nx = state.x + dist * Math.cos(rad);
       const ny = state.y + dist * Math.sin(rad);
       const draw: DrawCommand = state.penDown

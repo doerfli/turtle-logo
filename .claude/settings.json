@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsx *)"
+      "Bash(npx tsx *)",
+      "Bash(npx vitest *)",
+      "Bash(npx tsc *)",
+      "Bash(bun run *)",
+      "Bash(npx eslint *)"
     ]
   }
 }

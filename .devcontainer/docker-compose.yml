@@ -1,5 +1,9 @@
 version: '3'
 
+volumes: 
+  claude-code-config:
+    external: true
+
 services:
   app:
     # See https://aka.ms/vscode-remote/containers/non-root for details.
@@ -15,6 +19,8 @@ services:
         NODE_VERSION: "lts/*"
     volumes:
       - ..:/workspace:cached
+      - claude-code-config:/home/vscode/.claude
+      - $HOME/.claude.json:/home/vscode/.claude.json
       #- $HOME/.ssh/:/home/vscode/.ssh/ # Mount the ssh folder to authenticate with github
     # Overrides default command so things don't shut down after the process ends.
     command: sleep infinity
